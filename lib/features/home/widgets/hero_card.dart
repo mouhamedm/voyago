@@ -11,12 +11,15 @@ class HeroCard extends StatelessWidget {
   final double time; // horloge libre (secondes)
   final double scrollDy;
 
+  final VoidCallback? onTap;
+
   const HeroCard({
     super.key,
     required this.config,
     required this.reveal,
     required this.time,
     this.scrollDy = 0,
+    this.onTap,
   });
 
   @override
@@ -27,23 +30,25 @@ class HeroCard extends StatelessWidget {
       opacity: t,
       child: Transform.translate(
         offset: Offset(0, 40 * (1 - t)),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F4C81).withValues(alpha: config.isLight ? 0.22 : 0.4),
-                blurRadius: 30,
-                offset: const Offset(0, 14),
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: SizedBox(
-              height: 200,
-              child: Stack(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F4C81).withValues(alpha: config.isLight ? 0.22 : 0.4),
+                  blurRadius: 30,
+                  offset: const Offset(0, 14),
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: SizedBox(
+                height: 200,
+                child: Stack(
                 fit: StackFit.expand,
                 children: [
                   Transform.translate(
@@ -197,6 +202,7 @@ class HeroCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

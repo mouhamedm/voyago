@@ -9,6 +9,7 @@ import '../../shared/widgets/circular_reveal_route.dart';
 import '../../shared/widgets/scene_decor.dart';
 import '../../shared/widgets/staggered_reveal.dart';
 import '../auth/auth_controller.dart';
+import '../auth/auth_service.dart';
 import '../auth/login_sheet.dart';
 import '../home/home_screen.dart';
 
@@ -102,6 +103,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
       return;
     }
 
+    await AuthService.instance.saveLogin(email: email);
     await _accederKey.currentState?.playSuccess();
     if (!mounted) return;
     await Future.delayed(const Duration(milliseconds: 300));

@@ -19,6 +19,7 @@ class DestinationCard extends StatelessWidget {
   final DestinationData data;
   final double reveal; // 0..1, entrée en cascade
   final double depthScale; // 0.95..1, profondeur au scroll
+  final VoidCallback? onTap;
 
   const DestinationCard({
     super.key,
@@ -26,6 +27,7 @@ class DestinationCard extends StatelessWidget {
     required this.data,
     required this.reveal,
     this.depthScale = 1,
+    this.onTap,
   });
 
   @override
@@ -47,8 +49,10 @@ class DestinationCard extends StatelessWidget {
         offset: Offset(0, Motion.cardSlide * (1 - t)),
         child: Transform.scale(
           scale: (Motion.cardScaleFrom + (1 - Motion.cardScaleFrom) * t) * depthScale,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 14),
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 14),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isLight ? Colors.white : Colors.white.withValues(alpha: 0.06),
@@ -147,8 +151,9 @@ class DestinationCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _CountUpText extends StatelessWidget {

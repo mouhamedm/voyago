@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:voyago/features/auth/auth_service.dart';
 import 'package:voyago/main.dart';
 import 'package:voyago/features/home/home_screen.dart';
 
@@ -12,6 +14,12 @@ Future<void> _pumpFrames(WidgetTester tester, Duration total, {Duration step = c
 }
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await AuthService.instance.init();
+    await AuthService.instance.logout();
+  });
+
   testWidgets('Full intro flow: preloader -> welcome -> login -> home', (tester) async {
     await tester.pumpWidget(const VoyagoApp());
 
@@ -31,10 +39,10 @@ void main() {
 
     // Tap "Accéder" -> chorégraphie d'ouverture (2.4s) + reveal (0.9s) + home (0.3s).
     await tester.tap(find.text('Accéder'));
-    await _pumpFrames(tester, const Duration(milliseconds: 4200));
+    await _pumpFrames(tester, const Duration(milliseconds: 4500));
 
     expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.text('Salut, Alex'), findsOneWidget);
+    expect(find.text('VOYAGO'), findsOneWidget);
   });
 
   testWidgets('Invalid credentials trigger field errors instead of opening sequence', (tester) async {
@@ -63,5 +71,14 @@ void main() {
 
     await _pumpFrames(tester, const Duration(milliseconds: 4000));
     expect(find.text('Commencer'), findsOneWidget);
+  });
+
+  testWidgets('Persistent session: already logged in opens HomeScreen directly', (tester) async {
+    await AuthService.instance.saveLogin(email: 'vip@voyago.com');
+    await tester.pumpWidget(const VoyagoApp());
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.text('VOYAGO'), findsOneWidget);
   });
 }

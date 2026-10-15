@@ -3,17 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:device_preview/device_preview.dart';
 import 'core/theme_config.dart';
+import 'features/auth/auth_service.dart';
+import 'features/home/home_screen.dart';
 import 'features/intro/preloader_screen.dart';
 import 'features/intro/welcome_screen.dart';
 
-/// Incrémenté par le bouton de debug pour rejouer tout le flow depuis le
-/// preloader sans relancer l'application (pratique pour le tournage).
+/// Incrémenté pour réinitialiser ou rejouer le flow depuis l'extérieur.
 final ValueNotifier<int> kReplaySignal = ValueNotifier<int>(0);
 
 final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.instance.init();
+
   // Status bar transparente, pas de barre de debug visuelle superflue.
   final config = ThemeConfig.current;
   SystemChrome.setSystemUIOverlayStyle(
@@ -72,9 +75,8 @@ class VoyagoApp extends StatelessWidget {
   }
 }
 
-/// Racine de l'app : héberge le flow d'entrée (preloader -> welcome/login).
-/// Se reconstruit entièrement quand [kReplaySignal] change, ce qui permet
-/// au bouton de debug de rejouer le flow depuis zéro.
+/// Racine de l'app : si l'utilisateur est déjà connecté, affiche directement
+/// la Home page avec session persistée même après actualisation.
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
 
@@ -83,6 +85,9 @@ class AppRoot extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: kReplaySignal,
       builder: (context, replayCount, _) {
+        if (AuthService.instance.isLoggedIn) {
+          return HomeScreen(config: ThemeConfig.current);
+        }
         return IntroFlowHost(key: ValueKey(replayCount));
       },
     );

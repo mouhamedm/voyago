@@ -34,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final AnimationController _clock;
   final _scrollController = ScrollController();
   int _currentTab = 0;
+  int _selectedCategoryIndex = 0;
+  static const _categories = ['Tous', 'Fjords & Nord', 'Plages & Îles', 'Villes d\'Art', 'Évasions VIP'];
 
   final List<DestinationItem> _destinations = DestinationItem.sampleDestinations;
   late final List<GlobalKey> _cardKeys = List.generate(_destinations.length, (_) => GlobalKey());
@@ -181,10 +183,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           animation: Listenable.merge([_entrance, _clock, _scrollController]),
           builder: (context, _) {
             final time = _clock.value * 1000;
-            final headerReveal = _slice(0, Motion.headerEntrance.inMilliseconds / 1700, curve: Curves.easeOutCubic);
-            final searchReveal = _slice(0.16, 0.16 + Motion.searchBarExpand.inMilliseconds / 1700);
-            final heroReveal = _slice(0.24, 0.6);
-            final navReveal = _slice(0.1, 0.55);
+
+            // Proposition 1 : Apparition en cascade (Staggered Entrance)
+            // 1. Header : avatar & cloche descendent doucement (Fade + SlideDown, 300ms)
+            final headerReveal = _slice(0.0, 0.22, curve: Curves.easeOutBack);
+            // 2. Barre de recherche & Chips : glissent depuis la droite avec inertie douce
+            final searchReveal = _slice(0.10, 0.38, curve: Curves.easeOutCubic);
+            final chipsReveal = _slice(0.16, 0.44, curve: Curves.easeOutCubic);
+            // 3. Bannière Hero : s'agrandit légèrement avec effet shimmer
+            final heroReveal = _slice(0.24, 0.58, curve: Curves.easeOutBack);
+            // 5. Bottom Bar : remonte délicatement avec flou glassmorphic
+            final navReveal = _slice(0.18, 0.60, curve: Curves.easeOutBack);
 
             return SafeArea(
               child: Stack(
@@ -210,6 +219,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       // Onglet 0 : Explorer / Home
                       Column(
                         children: [
+                          // 1. Header (Fade + SlideDown)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
                             child: HomeHeader(
@@ -218,20 +228,97 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               onProfileTap: () => setState(() => _currentTab = 3),
                             ),
                           ),
+
+                          // 2. Barre de recherche (Glisse depuis la droite avec inertie douce)
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: GestureDetector(
-                              onTap: _showSearchDialog,
-                              child: AbsorbPointer(
-                                child: AnimatedSearchBar(config: config, reveal: searchReveal),
+                            child: Opacity(
+                              opacity: searchReveal.clamp(0.0, 1.0),
+                              child: Transform.translate(
+                                offset: Offset(42 * (1 - searchReveal), 0),
+                                child: GestureDetector(
+                                  onTap: _showSearchDialog,
+                                  child: AbsorbPointer(
+                                    child: AnimatedSearchBar(config: config, reveal: searchReveal),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+
+                          // 2bis. Chips catégories (Glissent depuis la droite avec inertie douce)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12, bottom: 4),
+                            child: Opacity(
+                              opacity: chipsReveal.clamp(0.0, 1.0),
+                              child: Transform.translate(
+                                offset: Offset(55 * (1 - chipsReveal), 0),
+                                child: SizedBox(
+                                  height: 38,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    itemCount: _categories.length,
+                                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                                    itemBuilder: (context, idx) {
+                                      final isSelected = _selectedCategoryIndex == idx;
+                                      return GestureDetector(
+                                        onTap: () => setState(() => _selectedCategoryIndex = idx),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 250),
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? config.accent
+                                                : (config.isLight
+                                                    ? Colors.white.withValues(alpha: 0.9)
+                                                    : Colors.white.withValues(alpha: 0.08)),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? config.accent
+                                                  : (config.isLight
+                                                      ? const Color(0x1E0F4C81)
+                                                      : Colors.white12),
+                                              width: 1.1,
+                                            ),
+                                            boxShadow: isSelected
+                                                ? [
+                                                    BoxShadow(
+                                                      color: config.accent.withValues(alpha: 0.35),
+                                                      blurRadius: 10,
+                                                      offset: const Offset(0, 3),
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                          child: Text(
+                                            _categories[idx],
+                                            style: TextStyle(
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : (config.isLight
+                                                      ? const Color(0xFF0F172A)
+                                                      : Colors.white70),
+                                              fontSize: 13,
+                                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
                           Expanded(
                             child: CustomScrollView(
                               controller: _scrollController,
                               slivers: [
+                                // 3. Bannière Hero (S'agrandit légèrement avec brillance shimmer)
                                 SliverToBoxAdapter(
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -244,13 +331,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ),
                                 ),
                                 const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                                // 4. Grille de destinations (Chaque carte apparaît avec 60ms de décalage)
                                 SliverPadding(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
                                   sliver: SliverList(
                                     delegate: SliverChildBuilderDelegate(
                                       (context, i) {
-                                        final start = 0.4 + i * (Motion.cardStagger.inMilliseconds / 1700);
-                                        final reveal = _slice(start, start + 0.3);
+                                        // Décalage exact de 60ms par carte
+                                        final start = 0.34 + i * (60 / 1700);
+                                        final reveal = _slice(start, (start + 0.26).clamp(0.0, 1.0), curve: Curves.easeOutCubic);
                                         final item = _destinations[i];
                                         return DestinationCard(
                                           key: _cardKeys[i],

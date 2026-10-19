@@ -26,14 +26,18 @@ class HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Curves.easeOutCubic.transform(reveal.clamp(0.0, 1.0));
     final loop = (time % 8) / 8; // boucle de 8 s pour un défilement majestueux
+    final shimmerT = ((time % 3500) / 3500); // cycle de brillance shimmer (Proposition 1)
+
     return Opacity(
       opacity: t,
       child: Transform.translate(
-        offset: Offset(0, 40 * (1 - t)),
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
+        offset: Offset(0, 36 * (1 - t)),
+        child: Transform.scale(
+          scale: 0.93 + 0.07 * t,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
@@ -196,6 +200,18 @@ class HeroCard extends StatelessWidget {
                       ],
                     ),
                   ),
+
+                  // Effet de brillance (shimmer) traversant la bannière (Proposition 1)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(28),
+                        child: CustomPaint(
+                          painter: _HeroCardShimmerPainter(progress: shimmerT),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -203,6 +219,49 @@ class HeroCard extends StatelessWidget {
         ),
       ),
     ),
-  );
+  ),
+);
 }
+}
+
+class _HeroCardShimmerPainter extends CustomPainter {
+  final double progress; // 0..1
+  _HeroCardShimmerPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Faisceau lumineux oblique qui balaie la carte
+    final dx = (progress * 2.5 - 0.75) * size.width;
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: const Alignment(-1.0, -0.6),
+        end: const Alignment(1.0, 0.6),
+        colors: [
+          Colors.white.withValues(alpha: 0.0),
+          Colors.white.withValues(alpha: 0.08),
+          Colors.white.withValues(alpha: 0.28),
+          Colors.white.withValues(alpha: 0.08),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.4, 0.5, 0.6, 1.0],
+        transform: _GradientTranslateTransform(dx / size.width),
+      ).createShader(rect);
+
+    canvas.drawRect(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeroCardShimmerPainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+class _GradientTranslateTransform extends GradientTransform {
+  final double offsetFraction;
+  const _GradientTranslateTransform(this.offsetFraction);
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    return Matrix4.translationValues(bounds.width * offsetFraction, 0.0, 0.0);
+  }
 }

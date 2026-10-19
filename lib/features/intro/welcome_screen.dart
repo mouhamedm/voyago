@@ -29,6 +29,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
   late final AnimationController _entrance; // séquence 2 : arrivée du véhicule + titre + CTA
   late final AnimationController _toLogin; // séquence 3 : welcome -> login (900 ms)
   late final AnimationController _opening; // séquence 4 : login -> home (2400 ms)
+  late final AnimationController _pulseRipple; // Proposition 1 : onde lumineuse diffuse depuis le bouton
 
   final _ctaKey = GlobalKey<PillActionButtonState>();
   final _accederKey = GlobalKey<PillActionButtonState>();
@@ -47,6 +48,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
     _entrance = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
     _toLogin = AnimationController(vsync: this, duration: Motion.welcomeToLoginTotal);
     _opening = AnimationController(vsync: this, duration: Motion.openingTotal);
+    _pulseRipple = AnimationController(vsync: this, duration: const Duration(milliseconds: 850));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _reduceMotion = Motion.reduceMotion;
@@ -64,16 +66,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
     _entrance.dispose();
     _toLogin.dispose();
     _opening.dispose();
+    _pulseRipple.dispose();
     super.dispose();
   }
 
   // -------------------------------------------------------------------
-  // Séquence 3 : tap sur "Commencer"
+  // Séquence 3 : tap sur "Commencer" (Proposition 1 : The Vinyl & Sonic Pulse)
   // -------------------------------------------------------------------
   Future<void> _handleStart() async {
-    await _ctaKey.currentState?.collapse();
-    if (!mounted) return;
+    _ctaKey.currentState?.triggerElasticBounce();
+    _pulseRipple.forward(from: 0);
     setState(() => _showLogin = true);
+    _ctaKey.currentState?.collapse(withLoader: true);
     _toLogin.forward(from: 0);
   }
 
@@ -135,18 +139,45 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
       },
       onPanEnd: (_) => setState(() => _drag = Offset.zero),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_clock, _entrance, _toLogin, _opening]),
+        animation: Listenable.merge([_clock, _entrance, _toLogin, _opening, _pulseRipple]),
         builder: (context, _) {
           final time = _clock.value * 1000;
+          // Proposition 1 : Zoom & Fade cinématographique en 3D lors du passage à la suite
+          final zoomT = Curves.easeInOutCubic.transform(_toLogin.value);
+          final sceneScale = 1.0 - 0.07 * zoomT;
+          final sceneDy = -20.0 * zoomT;
+          final sceneOpacity = (1.0 - 0.22 * zoomT).clamp(0.0, 1.0);
+
           return Stack(
             fit: StackFit.expand,
             children: [
-              Transform.translate(
-                offset: _drag,
-                child: RepaintBoundary(child: SceneDecor(config: config, time: time)),
+              // Scène d'onboarding avec recul 3D et fade cinématographique
+              Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.001) // perspective 3D
+                  ..scaleByDouble(sceneScale, sceneScale, 1.0, 1.0)
+                  ..setTranslationRaw(0.0, sceneDy, 0.0),
+                child: Opacity(
+                  opacity: sceneOpacity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Transform.translate(
+                        offset: _drag,
+                        child: RepaintBoundary(child: SceneDecor(config: config, time: time)),
+                      ),
+                      _buildVehicle(config, time),
+                      _buildHeadline(config),
+                    ],
+                  ),
+                ),
               ),
-              _buildVehicle(config, time),
-              _buildHeadline(config),
+
+              // Onde lumineuse (pulse ripple) se diffusant depuis le bouton vers le fond
+              if (_pulseRipple.value > 0 && _pulseRipple.value < 1)
+                _buildPulseRipple(config),
+
               if (!_showLogin || _toLogin.value < 1) _buildCta(config),
               if (_showLogin) _buildLoginOverlay(config),
             ],
@@ -351,6 +382,78 @@ class _WelcomeScreenState extends State<WelcomeScreen> with TickerProviderStateM
       ),
     );
   }
+
+  // -------------------------------------------------------------------
+  // Onde lumineuse diffuse (Pulse Ripple - Proposition 1)
+  // -------------------------------------------------------------------
+  Widget _buildPulseRipple(ThemeConfig config) {
+    final bottomPadding = MediaQuery.of(context).size.height * 0.08 + 28;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: bottomPadding,
+      child: Center(
+        child: CustomPaint(
+          size: const Size(1, 1),
+          painter: _PulseRippleWavePainter(
+            progress: _pulseRipple.value,
+            accent: config.accent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PulseRippleWavePainter extends CustomPainter {
+  final double progress; // 0..1
+  final Color accent;
+
+  _PulseRippleWavePainter({required this.progress, required this.accent});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset.zero;
+    final t1 = progress.clamp(0.0, 1.0);
+    final curve1 = Curves.easeOutCubic.transform(t1);
+
+    // Onde 1 principale cyan/néon
+    final radius1 = curve1 * 340.0;
+    final opacity1 = (1.0 - curve1).clamp(0.0, 1.0);
+
+    final glowPaint1 = Paint()
+      ..color = accent.withValues(alpha: opacity1 * 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5 * (1.0 - curve1 * 0.6)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(center, radius1, glowPaint1);
+
+    final linePaint1 = Paint()
+      ..color = Colors.white.withValues(alpha: opacity1 * 0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawCircle(center, radius1, linePaint1);
+
+    // Onde 2 en crimson/rose néon (décalée de 0.15)
+    final t2 = (progress - 0.15) / 0.85;
+    if (t2 > 0) {
+      final curve2 = Curves.easeOutCubic.transform(t2.clamp(0.0, 1.0));
+      final radius2 = curve2 * 260.0;
+      final opacity2 = (1.0 - curve2).clamp(0.0, 1.0);
+
+      final glowPaint2 = Paint()
+        ..color = const Color(0xFFFF2A6D).withValues(alpha: opacity2 * 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0 * (1.0 - curve2 * 0.5)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      canvas.drawCircle(center, radius2, glowPaint2);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PulseRippleWavePainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 double lerpD(double a, double b, double t) => a + (b - a) * t;
+

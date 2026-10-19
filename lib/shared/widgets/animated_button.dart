@@ -111,11 +111,13 @@ class PillActionButtonState extends State<PillActionButton> with TickerProviderS
   Widget build(BuildContext context) {
     final circleSize = widget.height;
     return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: (_) {
-        _onTapEnd();
-        widget.onPressed?.call();
+      onTap: () {
+        if (phase == PillButtonPhase.idle) {
+          widget.onPressed?.call();
+        }
       },
+      onTapDown: _onTapDown,
+      onTapUp: (_) => _onTapEnd(),
       onTapCancel: _onTapEnd,
       child: AnimatedBuilder(
         animation: Listenable.merge([_loop, _press, _bounce, _morph, _checkmark, _vinylSpin]),

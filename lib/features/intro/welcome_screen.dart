@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme_config.dart';
-import '../home/home_screen.dart';
+import '../../shared/widgets/animated_button.dart';
+import '../auth/login_screen.dart';
 
 /// Écran 1 (Onboarding / Welcome) :
 /// Fidèle à la première capture d'écran :
@@ -10,7 +11,7 @@ import '../home/home_screen.dart';
 /// - Titre : "Le ciel vous attend" (avec "attend" en bleu éclatant #2563EB)
 /// - Sous-titre : "Trouvez et réservez vos vols en quelques secondes, vers plus de  destinations."
 /// - Indicateurs 4 points
-/// - Bouton "Commencer →"
+/// - Bouton "Commencer →" animé avec rebond élastique et spinner rotatif vinyle/gyro 360°
 class WelcomeScreen extends StatefulWidget {
   final ThemeConfig config;
   const WelcomeScreen({super.key, required this.config});
@@ -23,6 +24,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
   late final AnimationController _animController;
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
+  final _commencerKey = GlobalKey<PillActionButtonState>();
+  bool _isNavigating = false;
 
   @override
   void initState() {
@@ -46,20 +49,45 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
     super.dispose();
   }
 
-  void _onCommencer() {
-    Navigator.of(context).push(
+  Future<void> _onCommencer() async {
+    if (_isNavigating) return;
+    _isNavigating = true;
+
+    // 1. Rebond élastique visuel (Haptic feedback visual)
+    await _commencerKey.currentState?.triggerElasticBounce();
+
+    // 2. Morphing en cercle et déclenchement du disque vinyle/gyro rotatif 360°
+    await _commencerKey.currentState?.collapse(withLoader: true);
+
+    // 3. Temporisation cinématographique pour apprécier l'animation
+    await Future.delayed(const Duration(milliseconds: 650));
+    if (!mounted) return;
+
+    // 4. Redirection vers la page de connexion dédiée
+    await Navigator.of(context).push(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionDuration: const Duration(milliseconds: 550),
         pageBuilder: (context, animation, secondaryAnimation) =>
-            HomeScreen(config: widget.config),
+            LoginScreen(config: widget.config),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+          final slide = Tween<Offset>(
+            begin: const Offset(0.05, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
           return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-            child: child,
+            opacity: fade,
+            child: SlideTransition(position: slide, child: child),
           );
         },
       ),
     );
+
+    // Réinitialise le bouton au retour de la page de connexion
+    if (mounted) {
+      _isNavigating = false;
+      _commencerKey.currentState?.reset();
+    }
   }
 
   @override
@@ -235,36 +263,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                           ),
                           const SizedBox(height: 28),
 
-                          // Bouton "Commencer →"
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
+                          // Bouton "Commencer →" animé avec rebond élastique et spinner rotatif 360°
+                          Center(
+                            child: PillActionButton(
+                              key: _commencerKey,
+                              label: 'Commencer',
+                              accent: const Color(0xFF2563EB),
+                              onAccent: Colors.white,
+                              width: MediaQuery.of(context).size.width - 48,
+                              height: 56,
+                              showArrow: true,
                               onPressed: _onCommencer,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB),
-                                foregroundColor: Colors.white,
-                                elevation: 8,
-                                shadowColor: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(28),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Commencer',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.arrow_forward_rounded, size: 20),
-                                ],
-                              ),
                             ),
                           ),
                           const SizedBox(height: 12),

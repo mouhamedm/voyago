@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:voyago/features/auth/auth_service.dart';
 import 'package:voyago/main.dart';
 import 'package:voyago/features/home/home_screen.dart';
@@ -15,8 +14,6 @@ Future<void> _pumpFrames(WidgetTester tester, Duration total, {Duration step = c
 
 void main() {
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    await AuthService.instance.init();
     await AuthService.instance.logout();
   });
 
@@ -73,12 +70,12 @@ void main() {
     expect(find.text('Commencer'), findsOneWidget);
   });
 
-  testWidgets('Persistent session: already logged in opens HomeScreen directly', (tester) async {
+  testWidgets('App always boots on intro flow after reload (no persistent login bypass)', (tester) async {
     await AuthService.instance.saveLogin(email: 'vip@voyago.com');
     await tester.pumpWidget(const VoyagoApp());
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.text('VOYAGO'), findsOneWidget);
+    expect(find.byType(HomeScreen), findsNothing);
+    expect(find.byType(IntroFlowHost), findsOneWidget);
   });
 }

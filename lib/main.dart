@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:device_preview/device_preview.dart';
 import 'core/theme_config.dart';
-import 'features/auth/auth_service.dart';
-import 'features/home/home_screen.dart';
 import 'features/intro/preloader_screen.dart';
 import 'features/intro/welcome_screen.dart';
 
@@ -13,9 +11,8 @@ final ValueNotifier<int> kReplaySignal = ValueNotifier<int>(0);
 
 final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await AuthService.instance.init();
 
   // Status bar transparente, pas de barre de debug visuelle superflue.
   final config = ThemeConfig.current;
@@ -75,8 +72,8 @@ class VoyagoApp extends StatelessWidget {
   }
 }
 
-/// Racine de l'app : si l'utilisateur est déjà connecté, affiche directement
-/// la Home page avec session persistée même après actualisation.
+/// Racine de l'app : démarre systématiquement par le flow d'introduction
+/// (preloader puis welcome/login).
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
 
@@ -85,9 +82,6 @@ class AppRoot extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: kReplaySignal,
       builder: (context, replayCount, _) {
-        if (AuthService.instance.isLoggedIn) {
-          return HomeScreen(config: ThemeConfig.current);
-        }
         return IntroFlowHost(key: ValueKey(replayCount));
       },
     );

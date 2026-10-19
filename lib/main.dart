@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:device_preview/device_preview.dart';
 import 'core/theme_config.dart';
-import 'features/intro/preloader_screen.dart';
 import 'features/intro/welcome_screen.dart';
 
 /// Incrémenté pour réinitialiser ou rejouer le flow depuis l'extérieur.
@@ -72,57 +71,38 @@ class VoyagoApp extends StatelessWidget {
   }
 }
 
-/// Racine de l'app : démarre systématiquement par le flow d'introduction
-/// (preloader puis welcome/login).
-class AppRoot extends StatelessWidget {
+/// Racine de l'app : démarre directement sur l'écran d'accueil Onboarding
+/// avec l'aile d'avion et le logo en papier (Capture 1).
+class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<int>(
-      valueListenable: kReplaySignal,
-      builder: (context, replayCount, _) {
-        return IntroFlowHost(key: ValueKey(replayCount));
-      },
-    );
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  @override
+  void initState() {
+    super.initState();
+    kReplaySignal.addListener(_handleReplay);
   }
-}
-
-/// Orchestration continue preloader -> welcome : le même fond dégradé
-/// persiste pendant tout le flow, aucune coupure sèche entre les séquences.
-class IntroFlowHost extends StatefulWidget {
-  const IntroFlowHost({super.key});
 
   @override
-  State<IntroFlowHost> createState() => _IntroFlowHostState();
-}
+  void dispose() {
+    kReplaySignal.removeListener(_handleReplay);
+    super.dispose();
+  }
 
-class _IntroFlowHostState extends State<IntroFlowHost> {
-  bool _showWelcome = false;
+  void _handleReplay() {
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
-    final config = ThemeConfig.current;
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(gradient: config.backgroundGradient),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          layoutBuilder: (currentChild, previousChildren) => Stack(
-            fit: StackFit.expand,
-            children: [...previousChildren, ?currentChild],
-          ),
-          child: _showWelcome
-              ? WelcomeScreen(key: const ValueKey('welcome'), config: config)
-              : PreloaderScreen(
-                  key: const ValueKey('preloader'),
-                  config: config,
-                  onComplete: () => setState(() => _showWelcome = true),
-                ),
-        ),
-      ),
+    return WelcomeScreen(
+      key: ValueKey(kReplaySignal.value),
+      config: ThemeConfig.current,
     );
   }
 }

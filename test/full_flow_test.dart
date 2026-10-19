@@ -1,81 +1,60 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:voyago/features/auth/auth_service.dart';
-import 'package:voyago/main.dart';
+import 'package:voyago/features/flights/flight_results_screen.dart';
 import 'package:voyago/features/home/home_screen.dart';
-
-Future<void> _pumpFrames(WidgetTester tester, Duration total, {Duration step = const Duration(milliseconds: 100)}) async {
-  var elapsed = Duration.zero;
-  while (elapsed < total) {
-    await tester.pump(step);
-    elapsed += step;
-  }
-}
+import 'package:voyago/features/intro/welcome_screen.dart';
+import 'package:voyago/main.dart';
 
 void main() {
-  setUp(() async {
-    await AuthService.instance.logout();
+  testWidgets('App boots on WelcomeScreen (Screen 1) with branding and Commencer CTA', (tester) async {
+    await tester.pumpWidget(const VoyagoApp());
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byType(WelcomeScreen), findsOneWidget);
+    expect(find.text('VOYAGO'), findsOneWidget);
+    expect(find.text('Commencer'), findsOneWidget);
   });
 
-  testWidgets('Full intro flow: preloader -> welcome -> login -> home', (tester) async {
+  testWidgets('Tap Commencer transitions to HomeScreen (Screen 2)', (tester) async {
     await tester.pumpWidget(const VoyagoApp());
+    await tester.pump(const Duration(milliseconds: 200));
 
-    // Preloader (3.2s) + crossfade (0.4s) vers Welcome.
-    await _pumpFrames(tester, const Duration(milliseconds: 4000));
-    expect(find.text('Commencer'), findsOneWidget);
-
-    // Tap "Commencer" -> transition vers Login (900ms).
+    // Tap Commencer
     await tester.tap(find.text('Commencer'));
-    await _pumpFrames(tester, const Duration(milliseconds: 1200));
-    expect(find.text('Bon retour'), findsOneWidget);
-
-    // Remplir le formulaire.
-    await tester.enterText(find.widgetWithText(TextField, 'Email'), 'test@voyago.app');
-    await tester.enterText(find.widgetWithText(TextField, 'Mot de passe'), 'password123');
-    await tester.pump();
-
-    // Tap "Accéder" -> chorégraphie d'ouverture (2.4s) + reveal (0.9s) + home (0.3s).
-    await tester.tap(find.text('Accéder'));
-    await _pumpFrames(tester, const Duration(milliseconds: 4500));
+    await tester.pumpAndSettle();
 
     expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.text('VOYAGO'), findsOneWidget);
+    expect(find.text('Rechercher un vol'), findsOneWidget);
+    expect(find.text('Destinations populaires'), findsOneWidget);
   });
 
-  testWidgets('Invalid credentials trigger field errors instead of opening sequence', (tester) async {
+  testWidgets('Tap Rechercher un vol opens FlightResultsScreen (Screen 3)', (tester) async {
     await tester.pumpWidget(const VoyagoApp());
-    await _pumpFrames(tester, const Duration(milliseconds: 4000));
+    await tester.pump(const Duration(milliseconds: 200));
 
     await tester.tap(find.text('Commencer'));
-    await _pumpFrames(tester, const Duration(milliseconds: 1200));
+    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Accéder'));
-    await _pumpFrames(tester, const Duration(milliseconds: 500));
+    // Tap Rechercher un vol
+    await tester.tap(find.text('Rechercher un vol'));
+    await tester.pumpAndSettle();
 
-    expect(find.text('Entrez votre email'), findsOneWidget);
-    expect(find.byType(HomeScreen), findsNothing);
+    expect(find.byType(FlightResultsScreen), findsOneWidget);
+    expect(find.text('AIRFRANCE'), findsOneWidget);
+    expect(find.text('Royal Air Maroc'), findsOneWidget);
   });
 
-  testWidgets('Debug replay signal resets the flow back to the preloader', (tester) async {
+  testWidgets('Replay signal resets to WelcomeScreen', (tester) async {
     await tester.pumpWidget(const VoyagoApp());
-    await _pumpFrames(tester, const Duration(milliseconds: 4000));
-    expect(find.text('Commencer'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await tester.tap(find.text('Commencer'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
 
     kReplaySignal.value++;
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('Commencer'), findsNothing);
-
-    await _pumpFrames(tester, const Duration(milliseconds: 4000));
+    expect(find.byType(WelcomeScreen), findsOneWidget);
     expect(find.text('Commencer'), findsOneWidget);
-  });
-
-  testWidgets('App always boots on intro flow after reload (no persistent login bypass)', (tester) async {
-    await AuthService.instance.saveLogin(email: 'vip@voyago.com');
-    await tester.pumpWidget(const VoyagoApp());
-    await tester.pump(const Duration(milliseconds: 500));
-
-    expect(find.byType(HomeScreen), findsNothing);
-    expect(find.byType(IntroFlowHost), findsOneWidget);
   });
 }

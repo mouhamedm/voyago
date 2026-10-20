@@ -53,31 +53,32 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
     if (_isNavigating) return;
     _isNavigating = true;
 
-    // 1. Rebond élastique visuel (Haptic feedback visual)
-    await _commencerKey.currentState?.triggerElasticBounce();
-
-    // 2. Morphing en cercle et déclenchement du disque vinyle/gyro rotatif 360°
+    // Déclenchement instantané en temps réel du spinner blanc dès le clic
     await _commencerKey.currentState?.collapse(withLoader: true);
 
-    // 3. Temporisation cinématographique pour apprécier l'animation
-    await Future.delayed(const Duration(milliseconds: 650));
+    // Bref délai pour apprécier la rotation fluide du spinner blanc
+    await Future.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
 
-    // 4. Redirection vers la page de connexion dédiée
+    // 4. Glissement latéral fluide et soyeux (Droite ➔ Gauche) sans coupure
     await Navigator.of(context).push(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 550),
+        transitionDuration: const Duration(milliseconds: 480),
+        reverseTransitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (context, animation, secondaryAnimation) =>
             LoginScreen(config: widget.config),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-          final slide = Tween<Offset>(
-            begin: const Offset(0.05, 0),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-          return FadeTransition(
-            opacity: fade,
-            child: SlideTransition(position: slide, child: child),
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+            reverseCurve: Curves.easeInOutCubic,
+          );
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
           );
         },
       ),

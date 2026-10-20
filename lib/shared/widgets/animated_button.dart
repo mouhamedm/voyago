@@ -70,15 +70,16 @@ class PillActionButtonState extends State<PillActionButton> with TickerProviderS
     await _bounce.forward(from: 0);
   }
 
-  /// Contracte le bouton en cercle. Si [withLoader] est vrai, affiche le
-  /// disque vinyle miniature avec anneau de lumière 360°.
+  /// Contracte le bouton en cercle instantanément et déclenche le spinner blanc
   Future<void> collapse({bool withLoader = false}) async {
-    setState(() => phase = PillButtonPhase.collapsing);
-    await _morph.animateTo(1, duration: const Duration(milliseconds: 240), curve: Curves.easeInOutCubic);
-    if (!mounted) return;
+    HapticFeedback.lightImpact();
     if (withLoader) {
       setState(() => phase = PillButtonPhase.loading);
+    } else {
+      setState(() => phase = PillButtonPhase.collapsing);
     }
+    _bounce.forward(from: 0);
+    await _morph.animateTo(1, duration: const Duration(milliseconds: 180), curve: Curves.easeOutCubic);
   }
 
   /// Joue la coche de succès (dessin progressif + burst de particules).
@@ -197,14 +198,13 @@ class PillActionButtonState extends State<PillActionButton> with TickerProviderS
                       ),
                     ),
 
-                  // Disque vinyle miniature avec anneau de lumière 360° (Proposition 1)
+                  // Spinner épuré blanc éclatant (sans noir ni rouge)
                   if (phase == PillButtonPhase.loading && isRound)
                     CustomPaint(
-                      size: Size(circleSize * 0.65, circleSize * 0.65),
-                      painter: _VinylSonicPulsePainter(
+                      size: Size(circleSize * 0.58, circleSize * 0.58),
+                      painter: _CleanWhiteSpinnerPainter(
                         spin: _vinylSpin.value,
                         pulse: _loop.value,
-                        accentColor: widget.accent,
                       ),
                     ),
 
@@ -258,16 +258,14 @@ class PillActionButtonState extends State<PillActionButton> with TickerProviderS
 
 double lerpDouble(double a, double b, double t) => a + (b - a) * t;
 
-/// Peintre du disque vinyle / gyroscope aéronautique avec anneau de lumière néon à 360°
-class _VinylSonicPulsePainter extends CustomPainter {
+/// Peintre du spinner épuré blanc éclatant (sans noir ni rouge)
+class _CleanWhiteSpinnerPainter extends CustomPainter {
   final double spin; // 0..1 rotation
   final double pulse; // 0..1 pulsation
-  final Color accentColor;
 
-  _VinylSonicPulsePainter({
+  _CleanWhiteSpinnerPainter({
     required this.spin,
     required this.pulse,
-    required this.accentColor,
   });
 
   @override
@@ -275,33 +273,24 @@ class _VinylSonicPulsePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // 1. Fond sombre du disque vinyle / instrument de bord
-    final discPaint = Paint()
-      ..color = const Color(0xFF0A0F1D)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius, discPaint);
-
-    // 2. Micro-sillons concentriques du disque vinyle
-    final groovePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
+    // 1. Cercle guide blanc doux translucide
+    final guidePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.18)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-    canvas.drawCircle(center, radius * 0.75, groovePaint);
-    canvas.drawCircle(center, radius * 0.55, groovePaint);
-    canvas.drawCircle(center, radius * 0.38, groovePaint);
+      ..strokeWidth = 2.4;
+    canvas.drawCircle(center, radius - 2, guidePaint);
 
-    // 3. Anneau de lumière néon rotatif à 360° (Sweep Gradient)
+    // 2. Arc de lumière blanc tournant à 360° (Sweep Gradient)
     final angle = spin * 2 * math.pi;
     final sweepShader = SweepGradient(
       startAngle: 0,
       endAngle: 2 * math.pi,
       colors: [
-        const Color(0xFF00E5FF).withValues(alpha: 0.0),
-        const Color(0xFF0284C7).withValues(alpha: 0.3),
-        const Color(0xFFFF2A6D).withValues(alpha: 0.7), // Touche néon crimson
-        const Color(0xFF00E5FF), // Brillance cyan éclatante
+        Colors.white.withValues(alpha: 0.0),
+        Colors.white.withValues(alpha: 0.35),
+        Colors.white,
       ],
-      stops: const [0.0, 0.45, 0.85, 1.0],
+      stops: const [0.0, 0.5, 1.0],
       transform: GradientRotation(angle),
     ).createShader(Rect.fromCircle(center: center, radius: radius));
 
@@ -310,36 +299,24 @@ class _VinylSonicPulsePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0
       ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(center, radius - 1.5, ringPaint);
+    canvas.drawCircle(center, radius - 2, ringPaint);
 
-    // 4. Point lumineux de tête (halo brillant qui tourne)
+    // 3. Point lumineux de tête blanc éclatant
     final headOffset = Offset(
-      center.dx + (radius - 1.5) * math.cos(angle),
-      center.dy + (radius - 1.5) * math.sin(angle),
+      center.dx + (radius - 2) * math.cos(angle),
+      center.dy + (radius - 2) * math.sin(angle),
     );
     final headGlow = Paint()
-      ..color = const Color(0xFF00E5FF)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    canvas.drawCircle(headOffset, 3.5, headGlow);
+      ..color = Colors.white.withValues(alpha: 0.75)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawCircle(headOffset, 3.2, headGlow);
 
     final headCore = Paint()..color = Colors.white;
-    canvas.drawCircle(headOffset, 2.0, headCore);
-
-    // 5. Noyau central (spindle) avec pulsation sonore
-    final pulseScale = 1.0 + 0.25 * math.sin(pulse * 2 * math.pi);
-    final centerGlowPaint = Paint()
-      ..color = const Color(0xFFFF2A6D).withValues(alpha: 0.45)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    canvas.drawCircle(center, 5.0 * pulseScale, centerGlowPaint);
-
-    final centerDotPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 2.5, centerDotPaint);
+    canvas.drawCircle(headOffset, 1.8, headCore);
   }
 
   @override
-  bool shouldRepaint(covariant _VinylSonicPulsePainter oldDelegate) =>
+  bool shouldRepaint(covariant _CleanWhiteSpinnerPainter oldDelegate) =>
       oldDelegate.spin != spin || oldDelegate.pulse != pulse;
 }
 

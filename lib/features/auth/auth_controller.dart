@@ -36,7 +36,6 @@ class AuthController {
 
   Future<AuthResult> login({required String email, required String password}) async {
     await Future.delayed(Motion.mockAuthDelay);
-    // TODO(auth): brancher Firebase Auth ici.
     return const AuthResult.success();
   }
 
